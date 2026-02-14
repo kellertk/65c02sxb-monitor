@@ -1,0 +1,43 @@
+The licensing status of this code is not clear. The original source from 1984
+was publishied in a magazine and is likely protected by copyright, even though
+the magazine is long gone and the publisher Markt+Technik no longer exists. SMON
+itself is an extremely popular 6502 monitor in Germany and has been widely
+ported and adapted. The original authors were Norfried Mann and Dietrich Weineck
+and the source was published over three issues of *64'er* magazine in 1984-85.
+
+This port is a substantial rewrite and is mostly not based on the original 
+source, but mostly because of the unclear licensing status of the original, I
+can only release this in the same sprit as all of the other derivatives out
+there - use this entirely at your own risk.
+
+I see that some derivatives have been released as under MIT. 
+
+---
+
+The following license applies to the parts of this project that I can license:
+
+Exclusion statement:
+If you are Western Design Center, Inc. or one of its affiliates or subsidiaries,
+this code is not licensed to you and is ALL RIGHTS RESERVED.
+
+If you are any other entity this code is licensed under the MIT License, as
+modified below. 
+
+Copyright Tom Keller <tom@tompkel.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice, exclusion statement, and this permission notice
+shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

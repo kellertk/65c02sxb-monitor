@@ -156,10 +156,8 @@
 ; Get next input character.  If no line has been read yet, read a full
 ; line from the terminal first.
 .proc monio_chrin
-        txa
-        pha
-        tya
-        pha
+        phx
+        phy
         lda     mon_crflag
         bne     @getbuf
         jsr     getlin          ; read input line
@@ -174,17 +172,14 @@
         inc     mon_csrcol
         jmp     @out
 @eol:
-        lda     #0
-        sta     mon_crflag
+        stz     mon_crflag
         inc     mon_csrcol
 @nocr:
         lda     #13             ; return CR
 @out:
         sta     mon_tmpbuf
-        pla
-        tay
-        pla
-        tax
+        ply
+        plx
         lda     mon_tmpbuf
         clc
         rts
@@ -202,9 +197,8 @@
         ldy     mon_csrcol
         lda     mon_csrrow
         pha                     ; save current row
-        lda     #0
-        sta     mon_stopflag
-        sta     mon_crflag      ; shares location with ESCFLAG
+        stz     mon_stopflag
+        stz     mon_crflag      ; shares location with ESCFLAG
 @wait:
         jsr     _usb_getc       ; blocking wait for character
         bit     mon_crflag
@@ -394,8 +388,7 @@
 ; Write output character (in A).
 .proc monio_chrout
         sta     mon_lastprnt
-        tya
-        pha
+        phy
         lda     mon_lastprnt
         cmp     #13
         bne     @notcr
@@ -415,14 +408,12 @@
         iny
         sty     mon_csrcol
         sty     mon_termcol
-        lda     #0
-        sta     mon_crflag
+        stz     mon_crflag
         cpy     #NUMCOLS
         bcc     @out
         jsr     proccr
 @out:
-        pla
-        tay
+        ply
         lda     mon_lastprnt
         clc
         rts
@@ -434,19 +425,16 @@
 ; ------------------------------------------------------------------------------
 ; Process carriage return - output CR/LF, advance line buffer.
 .proc proccr
-        tya
-        pha
-        txa
-        pha
+        phy
+        phx
         lda     #13
         jsr     _usb_putc
         lda     #10
         jsr     _usb_putc
-        lda     #0
-        sta     mon_termcol
-        sta     mon_csrcol
-        sta     mon_lastcol
-        sta     mon_crflag
+        stz     mon_termcol
+        stz     mon_csrcol
+        stz     mon_lastcol
+        stz     mon_crflag
         lda     mon_csrrow
         cmp     #NUMROWS-1
         bne     @noscrl
@@ -455,10 +443,8 @@
 @noscrl:
         jsr     rowdn
 @done:
-        pla
-        tax
-        pla
-        tay
+        plx
+        ply
         rts
 
 .endproc
@@ -501,10 +487,8 @@
 ; Scroll screen buffer up one line.
 .proc scrl
         pha
-        txa
-        pha
-        tya
-        pha
+        phx
+        phy
         lda     mon_csrrow
         pha
         lda     mon_lineptr
@@ -541,10 +525,8 @@
         sta     mon_lineptr
         pla
         sta     mon_csrrow
-        pla
-        tay
-        pla
-        tax
+        ply
+        plx
         pla
         rts
 
@@ -574,8 +556,7 @@
         sta     mon_lineptr
         lda     #>mon_linebuf
         sta     mon_lineptr+1
-        lda     #0
-        sta     mon_csrrow
+        stz     mon_csrrow
         ldx     #NUMROWS
 @loop:
         jsr     clrl
@@ -627,8 +608,7 @@
 .proc prline
         lda     #13
         jsr     _usb_putc
-        lda     #0
-        sta     mon_termcol
+        stz     mon_termcol
         jmp     preol
 
 .endproc
@@ -688,11 +668,10 @@
 ; ------------------------------------------------------------------------------
 ; Initialize monio state - called when entering monitor.
 .proc monio_reset
-        lda     #0
-        sta     mon_lastprnt
-        sta     mon_lastrecv
-        sta     mon_csrcol
-        sta     mon_kbdcnt
+        stz     mon_lastprnt
+        stz     mon_lastrecv
+        stz     mon_csrcol
+        stz     mon_kbdcnt
         lda     #NUMROWS-1
         sta     mon_csrrow
         sta     mon_rowlimit

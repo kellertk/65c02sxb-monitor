@@ -643,8 +643,7 @@ get_start_end:
         sta     mon_end+1
         jsr     peek_char               ; more input?
         bne     get_word_alt            ; yes -> get end address
-        lda     #$00
-        sta     mon_kbdbuf              ; put NUL into keyboard buffer
+        stz     mon_kbdbuf              ; put NUL into keyboard buffer
         inc     mon_kbdcnt
         rts
 
@@ -1103,8 +1102,7 @@ advance_by_len:
         lda     mon_inst_len
 @adv:
         jsr     inc_addr
-        sec
-        sbc     #$01
+        dec     a
         bne     @adv
         rts
 
@@ -1215,8 +1213,7 @@ asm_one_line:
 ; asm_get_line - assemble one line
 ; ------------------------------------------------------------------------------
 asm_get_line:
-        lda     #$00
-        sta     mon_csrcol
+        stz     mon_csrcol
         jsr     print_space             ; output space
         jsr     print_word              ; output address
         jsr     print_space             ; output space
@@ -1245,8 +1242,7 @@ asm_parse_line:
         dex
         bne     @skip
 @nocomma:
-        lda     #$00
-        sta     mon_commaflag
+        stz     mon_commaflag
         jsr     asm_skip_delim          ; get character (skip delimiters)
         cmp     #$46                    ; 'F' - finish assembly?
         bne     @notf
@@ -2103,8 +2099,7 @@ print_value:
         sty     mon_decval              ; high byte
         sta     mon_decval+1            ; low byte
         php
-        lda     #$00
-        sta     mon_csrcol
+        stz     mon_csrcol
         jsr     erase_eol               ; clear line buffer
         lda     mon_addr+1
         bne     pv_word
@@ -2680,8 +2675,7 @@ tl_linear:
         ; --- BRK in user code: just let it fire, but decrement PC ---
 tl_is_brk:
         ; BRK pushes PC+2, BRK handler adjusts.  Just run it.
-        lda     #0
-        sta     mon_bp_count            ; no breakpoints needed
+        stz     mon_bp_count            ; no breakpoints needed
         jmp     tl_run
 
         ; --- RTS: read return address from user stack ---

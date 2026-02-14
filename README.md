@@ -43,10 +43,10 @@ and relocatable asm so it's likely portable to other computers.
 | Segment    | Bytes | Contents                                  |
 |------------|------:|-------------------------------------------|
 | `STARTUP`  |    77 | One-time init code                        |
-| `CODE`     |  5077 | Program code                              |
+| `CODE`     |  5037 | Program code                              |
 | `RODATA`   |  1837 | Strings, tables, help text                |
 | `DATA`     |    37 | Initialized data (copied from ROM at startup) |
-|            | **7028** | **ROM total** (21% of 32 KB)           |
+|            | **6988** | **ROM total** (21% of 32 KB)           |
 | `ZEROPAGE` |    75 | Zero-page variables                       |
 | `BSS`      |  2141 | Uninitialized variables                   |
 |            | **2216** | **RAM total**                          |
@@ -98,7 +98,7 @@ Type `H` at the monitor prompt to display the built-in help.
 | **M** | `M xxxx (yyyy)` | Hex dump **m**emory from `xxxx` (to `yyyy`) |
 | **MS** | `MS` | Print **m**emory **s**ize |
 | **MT** | `MT xxxx yyyy (nn)` | **M**emory **t**est `xxxx`-`yyyy`, repeat `nn` times |
-| **O** | `O xxxx yyyy aa` | Fill memory `xxxx`-`yyyy` with byte `aa` |
+| **O** | `O xxxx yyyy aa` | Fill (**o**utput) memory `xxxx`-`yyyy` with byte `aa` |
 | **TW** | `TW xxxx` | **T**race **w**alk  - single-step from `xxxx` |
 | **TB** | `TB xxxx nn` | **T**race **b**reak  - set breakpoint at `xxxx`, stop after `nn` hits |
 | **TQ** | `TQ xxxx` | **T**race **q**uick  - run to breakpoint at `xxxx` |
