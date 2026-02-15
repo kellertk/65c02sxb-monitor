@@ -5,39 +5,21 @@ itself is an extremely popular 6502 monitor in Germany and has been widely
 ported and adapted. The original authors were Norfried Mann and Dietrich Weineck
 and the source was published over three issues of *64'er* magazine in 1984-85.
 
-This port is a substantial rewrite and is mostly not based on the original 
-source, but mostly because of the unclear licensing status of the original, I
+Mostly because of the unclear licensing status of the original, I
 can only release this in the same sprit as all of the other derivatives out
 there - use this entirely at your own risk.
 
-I see that some derivatives have been released as under MIT. 
+I see that some derivatives have been released as under MIT. If I'm able to
+license my modifications, they are available under 0BSD.
 
 ---
 
-The following license applies to the parts of this project that I can license:
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted.
 
-Exclusion statement:
-If you are Western Design Center, Inc. or one of its affiliates or subsidiaries,
-this code is not licensed to you and is ALL RIGHTS RESERVED.
-
-If you are any other entity this code is licensed under the MIT License, as
-modified below. 
-
-Copyright Tom Keller <tom@tompkel.net>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the “Software”), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice, exclusion statement, and this permission notice
-shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
