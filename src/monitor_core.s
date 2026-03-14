@@ -1063,7 +1063,7 @@ print_mnemonic:
         lda     #$20
         bit     mon_addr_mode
         beq     @twospc
-        jsr     print_two_spaces        ; two spaces
+        jsr     print_space             ; align with '#' column
 @twospc:
         ldx     #$20                    ; default: space before operand
         lda     #$04
@@ -1255,7 +1255,11 @@ asm_parse_line:
         stz     mon_commaflag
         jsr     asm_skip_delim          ; get character (skip delimiters)
         cmp     #$46                    ; 'F' - finish assembly?
+        beq     @finish
+        cmp     #$20                    ; space - empty line?
+        beq     @finish
         bne     @notf
+@finish:
         ; exit assembler: disassemble the result
         lsr     mon_mode
         pla

@@ -254,7 +254,7 @@
 
 ; --- backspace ---
 @bs:
-        cpy     #0
+        cpy     mon_csrcol
         beq     @wait
         dey
         lda     #8
