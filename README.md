@@ -99,7 +99,9 @@ Type `H` at the monitor prompt to display the built-in help.
 | **MS** | `MS` | Print **m**emory **s**ize |
 | **MT** | `MT xxxx yyyy (nn)` | **M**emory **t**est `xxxx`-`yyyy`, repeat `nn` times |
 | **O** | `O xxxx yyyy aa` | Fill (**o**utput) memory `xxxx`-`yyyy` with byte `aa` |
+| **P** | `P xxxx` | **P**eek - read and display byte at `xxxx` |
 | **R** | `R` | Display **r**egisters |
+| **S** | `S xxxx aa` | **S**tore - write byte `aa` to address `xxxx` |
 | **TW** | `TW xxxx` | **T**race **w**alk  - single-step from `xxxx` |
 | **TB** | `TB xxxx nn` | **T**race **b**reak  - set breakpoint at `xxxx`, stop after `nn` hits |
 | **TQ** | `TQ xxxx` | **T**race **q**uick  - run to breakpoint at `xxxx` |

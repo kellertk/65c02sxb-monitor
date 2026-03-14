@@ -119,7 +119,9 @@ hlpmsg:
         .byte   "M xxxx (yyyy) - Dump memory from x (to y) as HEX",0
         .byte   "MS - Check and print memory size",0
         .byte   "MT xxxx yyyy (nn) - Test memory x-y (repeat n times)",0
+        .byte   "P xxxx - Peek (read byte at x)",0
         .byte   "R - Display registers",0
+        .byte   "S xxxx aa - Store (write byte a to x)",0
         .byte   "O xxxx yyyy aa - Fill memory x-y with a",0
         .byte   "TW xxxx - Trace walk (single step)",0
         .byte   "TB xxxx nn - Trace break (set break point at x, stop when hit n times)",0
@@ -127,15 +129,20 @@ hlpmsg:
         .byte   "TS xxxx - Trace stop (run to x)",0
         .byte   "V xxxx yyyy zzzz aaaa bbbb - Within a-b, convert addresses referencing x-y to z",0
         .byte   "W xxxx yyyy zzzz - Copy memory x-y to z",0
+        .byte   "X - Exit monitor and return to interrupted code",0
+        .byte   ": xxxx aa bb ... - Edit memory at x (hex bytes)",0
+        .byte   "; xxxx aa bb cc dd ee - Set registers PC SR AC XR YR SP",0
         .byte   "= xxxx yyyy - compare memory starting at x to memory starting at y",0
+        .byte   "? xxxx+yyyy - Evaluate expression (+, -, *, /), print HEX/DEC/BIN",0
         .byte   "#ddd - convert DEC to HEX and BIN",0
         .byte   "$xx - convert HEX to DEC and BIN",0
         .byte   "%bbbbbbbb - convert BIN to DEC and HEX",0
+        .byte   "' xxxx text - Enter ASCII characters to memory at x",0
         .byte   0
 
-; --- command characters (23 commands) -----------------------------------------
+; --- command characters (26 commands) -----------------------------------------
 icmd:
-        .byte   "'#$%,:;=?ACDFGHKLMORTVWX"
+        .byte   "'#$%,:;=?ACDFGHKLMOPRSTVWX"
 icmde:
         .byte   $00,$00,$00,$00,$00     ; padding
 
@@ -160,7 +167,9 @@ iofs:
         .byte   <(load-1),>(load-1)     ; L
         .byte   <(memdump-1),>(memdump-1) ; M
         .byte   <(cmd_fill-1),>(cmd_fill-1) ; O
+        .byte   <(peek-1),>(peek-1)     ; P
         .byte   <(register-1),>(register-1) ; R
+        .byte   <(store-1),>(store-1)   ; S
         .byte   <(trace-1),>(trace-1)   ; T
         .byte   <(move-1),>(move-1)     ; V (Variation)
         .byte   <(write-1),>(write-1)   ; W
@@ -1207,8 +1216,8 @@ asm_next_line:
         jsr     print_cr                ; print CR
 asm_one_line:
         jsr     asm_get_line            ; get and assemble one line
-        bmi     asm_one_line
-        bpl     asm_next_line
+        bmi     asm_one_line            ; N set: error -> re-prompt (same line)
+        bpl     asm_next_line           ; N clear: success -> CR + next line
 
 ; ------------------------------------------------------------------------------
 ; asm_get_line - assemble one line
@@ -1648,6 +1657,29 @@ ofill:
         jmp     ofill
 odone:
         pla
+        rts
+
+; ------------------------------------------------------------------------------
+; peek - P command, read single byte
+; ------------------------------------------------------------------------------
+peek:
+        jsr     get_word                ; get address -> mon_addr
+        jsr     print_cr
+        jsr     print_word              ; print address
+        jsr     print_space
+        ldx     #$00
+        lda     (mon_addr,x)           ; read byte
+        jsr     print_hex_byte          ; print as hex
+        rts
+
+; ------------------------------------------------------------------------------
+; store - S command, write single byte
+; ------------------------------------------------------------------------------
+store:
+        jsr     get_word                ; get address -> mon_addr
+        jsr     get_byte_skip_ws        ; get byte -> A
+        ldx     #$00
+        sta     (mon_addr,x)           ; write byte
         rts
 
 ; ------------------------------------------------------------------------------
