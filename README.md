@@ -37,19 +37,20 @@ and relocatable asm so it's likely portable to other computers.
 - Trace / single-step / breakpoint execution
 - Address relocation (convert + copy)
 - Immediate evaluation (hex to decimal, binary to hex, etc., integer arithmetic)
+- Indirect jump through vectors (`G (addr)`)
 
 ## Memory Usage
 
 | Segment    | Bytes | Contents                                  |
 |------------|------:|-------------------------------------------|
 | `STARTUP`  |    77 | One-time init code                        |
-| `CODE`     |  5037 | Program code                              |
-| `RODATA`   |  1837 | Strings, tables, help text                |
+| `CODE`     |  5252 | Program code                              |
+| `RODATA`   |  2204 | Strings, tables, help text                |
 | `DATA`     |    37 | Initialized data (copied from ROM at startup) |
-|            | **6988** | **ROM total** (21% of 32 KB)           |
-| `ZEROPAGE` |    75 | Zero-page variables                       |
-| `BSS`      |  2141 | Uninitialized variables                   |
-|            | **2216** | **RAM total**                          |
+|            | **7570** | **ROM total** (23% of 32 KB)           |
+| `ZEROPAGE` |    73 | Zero-page variables                       |
+| `BSS`      |  2144 | Uninitialized variables                   |
+|            | **2217** | **RAM total**                          |
 
 
 ## Building
@@ -92,7 +93,7 @@ Type `H` at the monitor prompt to display the built-in help.
 | **FT** | `FT xxxx yyyy` | **F**ind **t**able (non-opcode bytes) in `xxxx`-`yyyy` |
 | **FZ** | `FZ aa, xxxx yyyy` | **F**ind **z**ero-page address `aa` in opcodes within `xxxx`-`yyyy` |
 | **FI** | `FI aa, xxxx yyyy` | **F**ind **i**mmediate argument `aa` in opcodes within `xxxx`-`yyyy` |
-| **G** | `G (xxxx)` | **G**o  - run from `xxxx` (or current PC) |
+| **G** | `G (xxxx)` | **G**o - run from `xxxx` (or current PC); `G (xxxx)` jumps indirect through vector at `xxxx` |
 | **K** | `K xxxx (yyyy)` | ASCII (ass-**k**ey) dump from `xxxx` (to `yyyy`) |
 | **L** | `L` | **L**oad Intel HEX data from terminal |
 | **M** | `M xxxx (yyyy)` | Hex dump **m**emory from `xxxx` (to `yyyy`) |

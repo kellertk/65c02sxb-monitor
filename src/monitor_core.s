@@ -65,11 +65,12 @@
         .importzp mon_page_cnt, mon_tmp
         .importzp mon_decval
         .importzp mon_work, mon_src_addr, mon_end_addr, mon_find_arg
-        .importzp mon_mode, mon_addr_mode, mon_cmd_char, mon_opcode_idx
+        .importzp mon_mode, mon_addr_mode, mon_opcode_idx
         .importzp mon_operand
         .importzp mon_scratch1, mon_scratch2, mon_inst_len, mon_asm_col
         .importzp mon_strptr, mon_scrollptr
-        .importzp mon_addrs, mon_swap_tmp, mon_addr, mon_end, mon_repeat
+        .importzp mon_addrs, mon_swap_tmp, mon_addr, mon_end
+        .import mon_cmd_char, mon_repeat
 
 ; ------------------------------------------------------------------------------
 ; Imports - BSS variables (from monitor.s)
@@ -792,12 +793,23 @@ inc_check_end:
 ; check_end - check whether end address reached
 ; ------------------------------------------------------------------------------
 ; C clear = not reached; C set = reached.
+; Also stops if address wrapped past $FFFF.
 ; ------------------------------------------------------------------------------
 check_end:
+        lda     mon_addr+1
+        cmp     #$00
+        bne     @nowrap
+        lda     mon_end+1
+        cmp     #$80                    ; end was in upper half?
+        bcs     @done                   ; addr wrapped, stop
+@nowrap:
         lda     mon_addr
         cmp     mon_end
         lda     mon_addr+1
         sbc     mon_end+1
+        rts
+@done:
+        sec
         rts
 
 ; ------------------------------------------------------------------------------
@@ -1864,7 +1876,39 @@ semi_lp:
 ; Uses direct indexed access into contiguous mon_regsave block.
 ; ------------------------------------------------------------------------------
 go:
+        jsr     skip_spaces
+        jsr     peek_char
+        beq     @direct                 ; CR = use current PC
+        cmp     #'('
+        beq     @indirect
+        cmp     #'0'                    ; must be hex digit
+        bcc     @bad
+        cmp     #'G'                    ; 0-9 A-F only
+        bcs     @bad
+@direct:
         jsr     get_opt_addr            ; optionally get address
+        bra     exit_monitor
+
+@indirect:
+        jsr     get_char                ; consume '('
+        jsr     peek_char
+        cmp     #'0'
+        bcc     @bad
+        jsr     get_word                ; mon_addr = vector address
+        jsr     peek_char
+        cmp     #')'
+        bne     @bad
+        lda     (mon_addr)
+        pha
+        ldy     #1
+        lda     (mon_addr),y
+        sta     mon_addr+1
+        pla
+        sta     mon_addr
+        jmp     (mon_addr)
+
+@bad:
+        jmp     error
 ; --- fall through to restore_and_rti ---
 
 ; ------------------------------------------------------------------------------

@@ -17,11 +17,12 @@
         .exportzp mon_page_cnt, mon_tmp
         .exportzp mon_decval
         .exportzp mon_work, mon_src_addr, mon_end_addr, mon_find_arg
-        .exportzp mon_mode, mon_addr_mode, mon_cmd_char, mon_opcode_idx
+        .exportzp mon_mode, mon_addr_mode, mon_opcode_idx
         .exportzp mon_operand
         .exportzp mon_scratch1, mon_scratch2, mon_inst_len, mon_asm_col
         .exportzp mon_strptr, mon_scrollptr
-        .exportzp mon_addrs, mon_swap_tmp, mon_addr, mon_end, mon_repeat
+        .exportzp mon_addrs, mon_swap_tmp, mon_addr, mon_end
+        .export mon_cmd_char, mon_repeat
 
 ; ------------------------------------------------------------------------------
 ; Exports - BSS
@@ -75,8 +76,7 @@ mon_tmp:        .res 2          ; temp (multiply/divide scratch)
 ; --- decimal print value ---
 mon_decval:     .res 2          ; 16-bit value for PRTINT
 
-; --- MON_BRK work block (12 bytes, MUST be contiguous)
-; --------------------------
+; --- MON_BRK work block (11 bytes, MUST be contiguous) -------------------------
 ; Indexed via  lda mon_work,x  etc.
 mon_work:
 mon_src_addr:   .res 2          ; source/temp address
@@ -84,7 +84,6 @@ mon_end_addr:   .res 2          ; end/temp address
 mon_find_arg:   .res 2          ; find arg / asm mnemonic
 mon_mode:       .res 1          ; mode flags
 mon_addr_mode:  .res 1          ; addressing-mode byte
-mon_cmd_char:   .res 1          ; command character
 mon_opcode_idx: .res 1          ; opcode table index
 mon_operand:    .res 2          ; operand word
 
@@ -100,18 +99,21 @@ mon_strptr:     .res 2          ; string output pointer
 ; --- scroll temp pointer ---
 mon_scrollptr:  .res 2          ; scroll src pointer
 
-; --- address-pointer block (6 bytes, MUST be contiguous) ---------------------
+; --- address-pointer block (5 bytes, MUST be contiguous) -----------------------
 ; Indexed via  lda mon_addrs+1,x  etc.
 mon_addrs:
 mon_swap_tmp:   .res 1          ; swap temp
 mon_addr:       .res 2          ; current address pointer
 mon_end:        .res 2          ; end address pointer
-mon_repeat:     .res 1          ; repetition counter
 
 ; ------------------------------------------------------------------------------
 ;                                BSS
 ; ------------------------------------------------------------------------------
         .segment "BSS"
+
+; --- work variables moved from ZP ---
+mon_cmd_char:   .res 1          ; command character
+mon_repeat:     .res 1          ; repetition counter
 
 ; --- software interrupt vectors ---
 mon_irq_vec:    .res 2          ; IRQ vector

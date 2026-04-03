@@ -13,12 +13,9 @@
         .export _boot_animation
 
 ; ------------------------------------------------------------------------------
-; I/O addresses (from linker config SYMBOLS)
+; Imports - I/O addresses (from linker config SYMBOLS)
 ; ------------------------------------------------------------------------------
-EXP0    = $7F00
-EXP1    = $7F20
-EXP2    = $7F40
-CS3     = $7F60
+        .import EXP0, EXP1, EXP2, CS3
 
 ; ------------------------------------------------------------------------------
 ;                             ZEROPAGE

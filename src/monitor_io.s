@@ -23,7 +23,7 @@
 ; ------------------------------------------------------------------------------
 ; Imports - USB driver
 ; ------------------------------------------------------------------------------
-        .import _usb_putc, _usb_getc, _usb_getc_nb
+        .import usb_putc_raw, _usb_getc, _usb_getc_nb, _usb_putsn
 
 ; ------------------------------------------------------------------------------
 ; Imports - monitor variables (zero-page)
@@ -217,7 +217,7 @@
         bcs     @wait
         sta     (mon_lineptr),y
         iny
-        jsr     _usb_putc       ; echo
+        jsr     usb_putc_raw       ; echo
         jmp     @wait
 
 @done:
@@ -258,12 +258,12 @@
         beq     @wait
         dey
         lda     #8
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         lda     #' '
         sta     (mon_lineptr),y
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         lda     #8
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         jmp     @wait
 
 ; --- ESC sequence start ---
@@ -315,7 +315,7 @@
 @cdn1:
         jsr     scrl
         lda     #10
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         jmp     @escclr
 
 @clt:
@@ -336,11 +336,11 @@
 @sendesc:
         pha
         lda     #27
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         lda     #'['
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         pla
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         jmp     @escclr
 
 .endproc
@@ -402,7 +402,7 @@
         bcc     @out            ; suppress control codes < $20
         jsr     chkcol
         lda     mon_lastprnt
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         ldy     mon_csrcol
         sta     (mon_lineptr),y
         iny
@@ -428,9 +428,9 @@
         phy
         phx
         lda     #13
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         lda     #10
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         stz     mon_termcol
         stz     mon_csrcol
         stz     mon_lastcol
@@ -578,20 +578,20 @@
         bcs     @fwd
         ; cursor moved back - reprint from start of line
         lda     #13
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         ldy     #0
 @rpl:
         cpy     mon_csrcol
         beq     @fwd
         lda     (mon_lineptr),y
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         iny
         jmp     @rpl
 @fwd:
         beq     @done
 @fwd2:
         lda     (mon_lineptr),y
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         dey
         cpy     mon_termcol
         bne     @fwd2
@@ -607,7 +607,7 @@
 ; Re-print the current line from the beginning.
 .proc prline
         lda     #13
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         stz     mon_termcol
         jmp     preol
 
@@ -641,7 +641,7 @@
 @sub:
         lda     #$20
 @ok:
-        jsr     _usb_putc
+        jsr     usb_putc_raw
         cpy     mon_tmpbuf
         bne     @prt
         sty     mon_termcol
@@ -660,7 +660,7 @@
 .endproc
 
 .proc monio_rawputc
-        jmp     _usb_putc       ; send byte in A
+        jmp     usb_putc_raw       ; send byte in A
 .endproc
 
 ; ------------------------------------------------------------------------------
@@ -679,6 +679,11 @@
         sta     mon_stopflag
         jsr     clrlb
         jsr     proccr          ; set cursor to start of line
-        rts
+        lda     #<msg_ready
+        ldx     #>msg_ready
+        jmp     _usb_putsn
 .endproc
+
+msg_ready:
+        .asciiz "Monitor available"
 
