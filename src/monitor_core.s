@@ -1227,11 +1227,29 @@ asm_get_line:
         jsr     print_space             ; output space
         jsr     print_word              ; output address
         jsr     print_space             ; output space
-        jsr     monio_chrin              ; get character (prime input)
+        jsr     monio_chrin             ; get character (prime input)
+        cmp     #$0D                    ; CR = empty line?
+        beq     @exit
         lda     #$01
         sta     mon_csrcol
         ldx     #$80
         bne     asm_parse_line
+@exit:
+        jsr     proccr
+        lsr     mon_mode
+        pla
+        pla
+        ldx     #$02
+@swap:
+        lda     mon_swap_tmp,x
+        pha
+        lda     mon_addr+1,x
+        sta     mon_swap_tmp,x
+        pla
+        sta     mon_addr+1,x
+        dex
+        bne     @swap
+        jmp     disasm_loop
 
 ; ------------------------------------------------------------------------------
 ; comma - , command, assemble single line
