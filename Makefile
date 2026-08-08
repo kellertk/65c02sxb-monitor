@@ -8,6 +8,7 @@
 #   stdlib    - Generate the stdlib.lib from cc65
 #   pad       - Build the padded 128KB ROM image for external flashing
 #   flash_rom - Flash padded ROM to SST39SF010A via minipro
+#   test      - Run unit tests in a simulated 65C02 system (needs py65)
 #   clean     - Remove all build artifacts
 #   rebuild   - Clean + full rebuild
 #
@@ -23,10 +24,12 @@ MINIPRO   = minipro
 # Directories
 SRC_DIR   = src
 BUILD_DIR = build
+TEST_DIR  = test
 
-# cc65 library location
-CC65_LIB_DIR = /usr/local/share/cc65/lib
-CC65_INC_DIR = /usr/local/share/cc65/asminc
+# cc65 data location (auto-detected; override with make CC65_DATA_DIR=...)
+CC65_DATA_DIR ?= $(firstword $(wildcard /usr/local/share/cc65 /usr/share/cc65))
+CC65_LIB_DIR  ?= $(CC65_DATA_DIR)/lib
+CC65_INC_DIR  ?= $(CC65_DATA_DIR)/asminc
 
 # Configuration
 CFG       = w65c02sxb.cfg
@@ -52,7 +55,7 @@ INC_SRC   = $(wildcard $(SRC_DIR)/*.inc)
 # Main targets
 # =============================================================================
 
-.PHONY: all rom stdlib pad flash_rom clean rebuild
+.PHONY: all rom stdlib pad flash_rom clean rebuild test
 
 all: $(ROM_PADDED)
 
@@ -66,6 +69,17 @@ stdlib: $(STDLIB)
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
+
+# =============================================================================
+# Tests
+# =============================================================================
+# Runs the monitor ROM under a simulated 65C02 system (py65) and drives it
+# through the emulated FT245 USB FIFO. Requires python3 and py65
+# (pip install py65).
+# =============================================================================
+
+test: $(ROM)
+	python3 -m unittest discover -s $(TEST_DIR) -v
 
 # =============================================================================
 # Standard library generation

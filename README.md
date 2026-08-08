@@ -66,8 +66,15 @@ and relocatable asm so it's likely portable to other computers.
 | `make`      | Build the 32 KB ROM image (`build/rom.bin`)         |
 | `make pad`  | Pad to 128 KB for the SST39SF010A (`build/rom.pad`) |
 | `make flash_rom` | Pad and flash via minipro                      |
+| `make test`      | Run unit tests in a simulated 65C02 system      |
 | `make clean`     | Remove build artifacts                          |
 | `make rebuild`   | Clean and rebuild                               |
+
+Note: the source uses the `c_sp` zero-page name, which requires a cc65
+built from git master (the 2.19 release still calls it `sp`). The Makefile
+auto-detects the cc65 data directory in `/usr/local/share/cc65` and
+`/usr/share/cc65`; override with `make CC65_DATA_DIR=...` if yours lives
+elsewhere.
 
 The SBC uses a 128 KB ROM chip, but only the top 32 KB is visible to the CPU.
 The ROM image is padded with `$FF` to 128 KB for flashing.
@@ -75,6 +82,27 @@ The ROM image is padded with `$FF` to 128 KB for flashing.
 You'll probably need a PLCC-32 to DIP-32 and a PLCC puller to flash the ROM
 chip, as well as a programmer. I was never able to get the board's built-in USB
 to work, which is why I'm using this in the first place.
+
+## Testing
+
+`make test` runs the ROM image under a simulated W65C02SXB and drives the
+monitor through an emulated terminal, checking the responses. The
+simulation uses [py65](https://github.com/mnaberez/py65)'s 65C02 core with
+the board's memory map, and emulates the FT245 USB FIFO at the VIA2
+register level, so the exact bytes that would ship over USB on real
+hardware are what the tests assert against. Tests boot the ROM from its
+reset vector, trigger an NMI to enter the monitor, and type commands at
+the prompt just like a user would.
+
+Requirements: `python3` and py65 (`pip install -r test/requirements.txt`).
+
+- `test/sxb_sim.py` - the simulated board: FT245/VIA2 emulation, NMI,
+  terminal-style `command()` interface, and a `call()` helper for invoking
+  individual subroutines by label (addresses are read from the linker's
+  `build/rom.labels` output).
+- `test/test_monitor.py` - the monitor test suite.
+
+Tests also run automatically on GitHub for every pull request.
 
 ## Monitor Commands
 
