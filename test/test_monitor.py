@@ -108,6 +108,13 @@ class MonitorTestCase(unittest.TestCase):
         self.assertIn("JMP 1300", out)
         self.assertIn("---", out)  # separator after JMP
 
+    def test_disassemble_runs_unpaged(self):
+        """Output longer than a screenful never stops for a keypress."""
+        self.poke(0x1300, bytes.fromhex("EA") * 0x60)  # 96 NOPs, 96 lines
+        out = self.sim.command("D 1300 1360", auto_key=False)
+        self.assertEqual(self.sim.state, "input")  # ran to the prompt
+        self.assertEqual(out.count("NOP"), 0x60)   # every line printed
+
     # ------------------------------------------------------------------
     # F - find byte sequence
     # ------------------------------------------------------------------
@@ -215,8 +222,8 @@ class MonitorTestCase(unittest.TestCase):
     # H - help
     # ------------------------------------------------------------------
     def test_help(self):
-        """H prints the full command summary (across output pauses)."""
-        out = self.sim.command("H")
+        """H prints the full command summary in one unpaged burst."""
+        out = self.sim.command("H", auto_key=False)
         self.assertIn("A xxxx - Assemble", out)
         self.assertIn("TW (xxxx) - Trace walk", out)
         self.assertIn("%bbbbbbbb - convert BIN", out)  # last help line
@@ -331,7 +338,7 @@ class MonitorTestCase(unittest.TestCase):
         keypress, ESC stops."""
         # LDA #$42 / STA $1100 / BRK
         self.poke(0x1A30, bytes.fromhex("A9428D001100"))
-        out = self.sim.command("TW 1A30", auto_page=False)
+        out = self.sim.command("TW 1A30", auto_key=False)
         self.assertEqual(self.sim.state, "pause")  # waiting for step key
         self.assertIn("1A30", out)
         self.assertIn("LDA", out)  # about to execute LDA #$42
@@ -393,7 +400,7 @@ class MonitorTestCase(unittest.TestCase):
         # LDA #$42 / STA $1100 / BRK
         self.poke(0x1A30, bytes.fromhex("A9428D001100"))
         self.set_saved_pc(0x1A30)
-        out = self.sim.command("TW ", auto_page=False)
+        out = self.sim.command("TW ", auto_key=False)
         self.assertEqual(self.sim.state, "pause")     # walking, wants a key
         self.assertIn("1A32", out)                    # PC after the LDA step
         self.assertIn("STA", out)                     # next instruction shown

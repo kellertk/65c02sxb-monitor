@@ -28,9 +28,21 @@ BUILD_DIR = build
 TEST_DIR  = test
 
 # cc65 data location (auto-detected; override with make CC65_DATA_DIR=...)
-CC65_DATA_DIR ?= $(firstword $(wildcard /usr/local/share/cc65 /usr/share/cc65))
+# Probed in order: $CC65_HOME, the prefix of the cl65 found on $PATH, then the
+# usual system prefixes.
+CC65_BIN_DIR  := $(dir $(shell command -v $(CL65)))
+CC65_DATA_DIR ?= $(firstword $(wildcard $(CC65_HOME) \
+                                        $(CC65_BIN_DIR)share/cc65 \
+                                        $(CC65_BIN_DIR)../share/cc65 \
+                                        /usr/local/share/cc65 /usr/share/cc65))
 CC65_LIB_DIR  ?= $(CC65_DATA_DIR)/lib
 CC65_INC_DIR  ?= $(CC65_DATA_DIR)/asminc
+
+ifeq ($(CC65_DATA_DIR),)
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+$(error cc65 data directory not found; set CC65_DATA_DIR=/path/to/share/cc65)
+endif
+endif
 
 # Configuration
 CFG       = w65c02sxb.cfg

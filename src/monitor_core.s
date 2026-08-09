@@ -27,13 +27,13 @@
         .export print_cr, print_space, print_two_spaces, print_cr_then_x
         .export print_a_then_x
         .export strout, strout1
-        .export page_pause, check_stop_key, dispatch, cmdexec
+        .export check_stop_key, dispatch, cmdexec
         .export get_addr_to_pc, get_three_words, get_start_end
         .export get_two_words, get_word, get_word_alt
         .export get_byte_skip_ws, get_hex_byte, convert_hex_nibble
         .export hex_char_to_val, skip_spaces
         .export print_word, print_hex_byte, print_hex_nibble, inc_addr
-        .export check_pause_end, inc_check_end, check_end
+        .export check_stop_end, inc_check_end, check_end
         .export store_line_char, erase_eol
         .export decode_opcode, read_operand, branch_target, branch_target_rts
         .export disasm_one, disasm_body, print_instruction, print_mnemonic
@@ -62,7 +62,7 @@
         .importzp mon_msgflag, mon_tmpbuf, mon_kbdbuf, mon_kbdcnt
         .importzp mon_lastcol, mon_crflag, mon_lineptr, mon_csrcol
         .importzp mon_csrrow, mon_lastprnt
-        .importzp mon_page_cnt, mon_tmp
+        .importzp mon_tmp
         .importzp mon_decval
         .importzp mon_work, mon_src_addr, mon_end_addr, mon_find_arg
         .importzp mon_mode, mon_addr_mode, mon_opcode_idx
@@ -398,8 +398,6 @@ mainloop:
         txs                             ; reset stack
         ldx     #$00
         stx     mon_kbdcnt              ; clear keyboard buffer
-        lda     #NUMROWS-2
-        sta     mon_page_cnt            ; reset page line counter
         lda     mon_csrcol
         beq     @skipcr
         jsr     print_cr                ; print CR if not at col 0
@@ -560,41 +558,9 @@ help:
         jsr     monio_chrout
         jsr     strout1                 ; print string until 0 terminator
         iny                             ; advance past 0 to next string
-        cpy     #20
-        bne     @nopause
-        lda     #' '                    ; push SPACE to keyboard buffer
-        sta     mon_kbdbuf              ; (pauses output after next line)
-        inc     mon_kbdcnt
-@nopause:
-        jsr     page_pause              ; check PAUSE/STOP
+        jsr     check_stop_key          ; check STOP
         lda     (mon_strptr),y          ; first byte of next string
         bne     @line                   ; loop if not end sentinel
-        rts
-
-; ------------------------------------------------------------------------------
-; page_pause - end-of-line wait/pause handling
-; ------------------------------------------------------------------------------
-; If a key was pressed, wait for another keypress to resume.
-; If SPACE, push it to kbdbuf so the next line pauses too.
-; If STOP, longjmp to mainloop.
-; ------------------------------------------------------------------------------
-page_pause:
-        dec     mon_page_cnt            ; decrement page line counter
-        bmi     @autopause              ; page full -> force pause
-        jsr     check_stop_key          ; poll for keypress
-        beq     @done                   ; no key -> done
-        bne     @dowait                 ; key pressed -> pause
-@autopause:
-        lda     #NUMROWS-2
-        sta     mon_page_cnt            ; reset counter
-@dowait:
-        jsr     check_stop_key
-        beq     @dowait                 ; wait for resume keypress
-        cmp     #$20                    ; SPACE?
-        bne     @done
-        sta     mon_kbdbuf
-        inc     mon_kbdcnt              ; single-step mode
-@done:
         rts
 
 ; ------------------------------------------------------------------------------
@@ -771,10 +737,10 @@ inc_addr:
         rts
 
 ; ------------------------------------------------------------------------------
-; check_pause_end - check stop/pause + end address
+; check_stop_end - check stop key + end address
 ; ------------------------------------------------------------------------------
-check_pause_end:
-        jsr     page_pause              ; end-of-line wait handling
+check_stop_end:
+        jsr     check_stop_key          ; abort on ESC/CTRL-C
         jmp     check_end               ; check end address
 
 ; ------------------------------------------------------------------------------
@@ -980,7 +946,7 @@ disasm_loop:
         dex
         bne     @dash
 @nosep:
-        jsr     check_pause_end         ; check pause/stop/end
+        jsr     check_stop_end          ; check stop/end
         bcc     disasm_loop
         rts
 
@@ -1492,7 +1458,7 @@ md_ascii_byte:
         jsr     store_line_char         ; store ASCII in line buffer
         bne     md_print_byte           ; repeat until Y == NUMCOLS
         jsr     preol                   ; print rest of line
-        jsr     check_pause_end         ; check pause/stop/end
+        jsr     check_stop_end          ; check stop/end
         bcc     md_hex_line             ; continue if not at end
         rts
 
@@ -1668,7 +1634,7 @@ kchr:
         bne     kchr                    ; repeat until Y == NUMCOLS
         jsr     preol                   ; print rest of line
         ldx     #$00
-        jsr     check_pause_end         ; check pause/stop/end
+        jsr     check_stop_end          ; check stop/end
         bcc     kloop                   ; continue if not at end
         rts
 
@@ -2393,7 +2359,7 @@ f_cmp:
         ldy     mon_csrcol
         cpy     #76
         bcc     f_next
-        jsr     page_pause
+        jsr     check_stop_key          ; abort on ESC/CTRL-C
         jsr     print_cr
 f_next:
         jsr     inc_check_end
@@ -2437,7 +2403,7 @@ f_sub5a:
 f_sub6:
         sty     mon_mode
         jsr     disasm_one              ; disassemble match
-        jsr     page_pause              ; pause/stop
+        jsr     check_stop_key          ; abort on ESC/CTRL-C
 f_sub6a:
         jsr     check_end
         bcc     f_sub3

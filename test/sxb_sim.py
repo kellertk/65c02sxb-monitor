@@ -24,9 +24,8 @@ With the input queue empty, the CPU can be stuck in one of two loops:
   'input' - _usb_getc's blocking wait (getlin/rawgetc): one DDRA write on
             entry, then nothing but RXF# polls.  This is the monitor
             waiting for a command line (or the HEX loader for data).
-  'pause' - a _usb_getc_nb polling loop (page_pause's wait-for-keypress,
-            trace walk's wait-for-step-key).  Each poll rewrites DDRA
-            before testing RXF#.
+  'pause' - a _usb_getc_nb polling loop (trace walk's wait-for-step-key).
+            Each poll rewrites DDRA before testing RXF#.
 
 The DDRA write is the discriminator: `_empty_polls` counts consecutive
 empty RXF# polls but resets on DDRA writes, so it only climbs inside the
@@ -170,8 +169,7 @@ class SXBSim:
         """Step the CPU until it blocks.  Returns and records one of:
         'wai'   - executed WAI (parked outside the monitor)
         'input' - blocking read, wants a line of input (or HEX data)
-        'pause' - polling read, wants a single keypress (paged output,
-                  trace walk)"""
+        'pause' - polling read, wants a single keypress (trace walk)"""
         self._empty_polls = 0
         self._idle_polls = 0
         mpu = self.mpu
@@ -252,26 +250,26 @@ class SXBSim:
             raise SimTimeout("monitor did not reach its input loop")
         return self.take_output()
 
-    def command(self, line, auto_page=True, max_pages=100):
+    def command(self, line, auto_key=True, max_keys=100):
         """Type a command line at the monitor prompt and return everything
         it printed, up to the next line-input wait (or WAI, for X/G).
 
-        Paged output pauses for a keypress every screenful; with auto_page
-        the harness answers each pause with CR, like a user holding Enter.
-        Pass auto_page=False to stop at the first pause instead (needed
-        for trace walk, where each keypress single-steps)."""
+        Output is never paged, but trace walk waits for a keypress per
+        step; with auto_key the harness answers each wait with CR, like a
+        user holding Enter.  Pass auto_key=False to stop at the first wait
+        instead (needed to inspect trace walk step by step)."""
         self.send_line(line)
         text = ""
-        for _ in range(max_pages):
+        for _ in range(max_keys):
             state = self.run_until_blocked()
             text += self.take_output()
-            if state != "pause" or not auto_page:
+            if state != "pause" or not auto_key:
                 return text
-            self.send_keys("\r")  # answer the pause, keep going
-        raise SimTimeout("paged output did not finish after %d pages" % max_pages)
+            self.send_keys("\r")  # answer the keypress wait, keep going
+        raise SimTimeout("command still running after %d keypresses" % max_keys)
 
     def press_key(self, key):
-        """Send one keypress to a paused monitor (trace walk step, pager)
+        """Send one keypress to a monitor waiting for one (trace walk step)
         and run until it blocks again.  Returns the new output."""
         self.send_keys(key)
         self.run_until_blocked()
