@@ -6,5 +6,4 @@ int main (void) {
     while (1) {
         wait();
     }
-    return 0;
 }

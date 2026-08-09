@@ -1,0 +1,43 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # cc65 2.19 (apt) is too old for this source (c_sp zero-page rename),
+  # so CI builds cc65 from source, pinned for reproducibility.
+  CC65_COMMIT: 547d923588d870aacf0b0016c67d0f6a92a70f83
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cc65
+        id: cache-cc65
+        uses: actions/cache@v4
+        with:
+          path: ~/cc65-install
+          key: cc65-${{ env.CC65_COMMIT }}
+
+      - name: Build cc65
+        if: steps.cache-cc65.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/cc65/cc65.git "$RUNNER_TEMP/cc65"
+          cd "$RUNNER_TEMP/cc65"
+          git checkout "$CC65_COMMIT"
+          make -j"$(nproc)" bin
+          make -j"$(nproc)" lib
+          make install PREFIX="$HOME/cc65-install"
+
+      - name: Add cc65 to PATH
+        run: echo "$HOME/cc65-install/bin" >> "$GITHUB_PATH"
+
+      - name: Install test dependencies
+        run: pip install -r test/requirements.txt
+
+      - name: Run tests
+        run: make test CC65_DATA_DIR="$HOME/cc65-install/share/cc65"

@@ -8,6 +8,8 @@
 #   stdlib    - Generate the stdlib.lib from cc65
 #   pad       - Build the padded 128KB ROM image for external flashing
 #   flash_rom - Flash padded ROM to SST39SF010A via minipro
+#   test      - Run unit tests in a simulated 65C02 system (needs py65)
+#   sim       - Run the monitor interactively in the simulator
 #   clean     - Remove all build artifacts
 #   rebuild   - Clean + full rebuild
 #
@@ -23,10 +25,24 @@ MINIPRO   = minipro
 # Directories
 SRC_DIR   = src
 BUILD_DIR = build
+TEST_DIR  = test
 
-# cc65 library location
-CC65_LIB_DIR = /usr/local/share/cc65/lib
-CC65_INC_DIR = /usr/local/share/cc65/asminc
+# cc65 data location (auto-detected; override with make CC65_DATA_DIR=...)
+# Probed in order: $CC65_HOME, the prefix of the cl65 found on $PATH, then the
+# usual system prefixes.
+CC65_BIN_DIR  := $(dir $(shell command -v $(CL65)))
+CC65_DATA_DIR ?= $(firstword $(wildcard $(CC65_HOME) \
+                                        $(CC65_BIN_DIR)share/cc65 \
+                                        $(CC65_BIN_DIR)../share/cc65 \
+                                        /usr/local/share/cc65 /usr/share/cc65))
+CC65_LIB_DIR  ?= $(CC65_DATA_DIR)/lib
+CC65_INC_DIR  ?= $(CC65_DATA_DIR)/asminc
+
+ifeq ($(CC65_DATA_DIR),)
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+$(error cc65 data directory not found; set CC65_DATA_DIR=/path/to/share/cc65)
+endif
+endif
 
 # Configuration
 CFG       = w65c02sxb.cfg
@@ -52,7 +68,7 @@ INC_SRC   = $(wildcard $(SRC_DIR)/*.inc)
 # Main targets
 # =============================================================================
 
-.PHONY: all rom stdlib pad flash_rom clean rebuild
+.PHONY: all rom stdlib pad flash_rom clean rebuild test sim
 
 all: $(ROM_PADDED)
 
@@ -66,6 +82,21 @@ stdlib: $(STDLIB)
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
+
+# =============================================================================
+# Tests
+# =============================================================================
+# Runs the monitor ROM under a simulated 65C02 system (py65) and drives it
+# through the emulated FT245 USB FIFO. Requires python3 and py65
+# (pip install py65).
+# =============================================================================
+
+test: $(ROM)
+	python3 -m unittest discover -s $(TEST_DIR) -v
+
+# Launch the simulated SXB with your terminal as the USB console
+sim: $(ROM)
+	python3 $(TEST_DIR)/interactive.py
 
 # =============================================================================
 # Standard library generation

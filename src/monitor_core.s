@@ -27,13 +27,13 @@
         .export print_cr, print_space, print_two_spaces, print_cr_then_x
         .export print_a_then_x
         .export strout, strout1
-        .export page_pause, check_stop_key, dispatch, cmdexec
-        .export get_opt_addr, get_addr_to_pc, get_three_words, get_start_end
+        .export check_stop_key, dispatch, cmdexec
+        .export get_addr_to_pc, get_three_words, get_start_end
         .export get_two_words, get_word, get_word_alt
         .export get_byte_skip_ws, get_hex_byte, convert_hex_nibble
         .export hex_char_to_val, skip_spaces
         .export print_word, print_hex_byte, print_hex_nibble, inc_addr
-        .export check_pause_end, inc_check_end, check_end
+        .export check_stop_end, inc_check_end, check_end
         .export store_line_char, erase_eol
         .export decode_opcode, read_operand, branch_target, branch_target_rts
         .export disasm_one, disasm_body, print_instruction, print_mnemonic
@@ -62,7 +62,7 @@
         .importzp mon_msgflag, mon_tmpbuf, mon_kbdbuf, mon_kbdcnt
         .importzp mon_lastcol, mon_crflag, mon_lineptr, mon_csrcol
         .importzp mon_csrrow, mon_lastprnt
-        .importzp mon_page_cnt, mon_tmp
+        .importzp mon_tmp
         .importzp mon_decval
         .importzp mon_work, mon_src_addr, mon_end_addr, mon_find_arg
         .importzp mon_mode, mon_addr_mode, mon_opcode_idx
@@ -109,11 +109,11 @@ hlpmsg:
         .byte   "C xxxx yyyy zzzz aaaa bbbb - Convert (execute V followed by W)",0
         .byte   "D xxxx (yyyy) - Disassemble from x (to y)",0
         .byte   "F aa bb cc ..., xxxxx yyyyy - Find byte sequence a b c in x-y",0
-        .byte   "FAaaaa, xxxx yyyy - Find absolute address used in opcode",0
-        .byte   "FRaaaa, xxxx yyyy - Find relative address used in opcode",0
-        .byte   "FTxxxx yyyy - Find table (non-opcode bytes) in x-y",0
-        .byte   "FZaa, xxxx yyyy - Find zero-page address used in opcode",0
-        .byte   "FIaa, xxxx yyyy - Find immediate argument used in opcode",0
+        .byte   "FA aaaa, xxxx yyyy - Find absolute address used in opcode",0
+        .byte   "FR aaaa, xxxx yyyy - Find relative address used in opcode",0
+        .byte   "FT xxxx yyyy - Find table (non-opcode bytes) in x-y",0
+        .byte   "FZ aa, xxxx yyyy - Find zero-page address used in opcode",0
+        .byte   "FI aa, xxxx yyyy - Find immediate argument used in opcode",0
         .byte   "G (xxxx) - Run from x (or current PC)",0
         .byte   "K xxxx (yyyy) - Dump memory from x (to y) as ASCII",0
         .byte   "L - Load Intel HEX data from terminal",0
@@ -124,9 +124,9 @@ hlpmsg:
         .byte   "R - Display registers",0
         .byte   "S xxxx aa - Store (write byte a to x)",0
         .byte   "O xxxx yyyy aa - Fill memory x-y with a",0
-        .byte   "TW xxxx - Trace walk (single step)",0
+        .byte   "TW (xxxx) - Trace walk (single step from x; no address: step from PC)",0
         .byte   "TB xxxx nn - Trace break (set break point at x, stop when hit n times)",0
-        .byte   "TQ xxxx - Trace quick (run to break point)",0
+        .byte   "TQ (xxxx) - Trace quick (run from x, or PC, to break point set by TS/TB)",0
         .byte   "TS xxxx - Trace stop (run to x)",0
         .byte   "V xxxx yyyy zzzz aaaa bbbb - Within a-b, convert addresses referencing x-y to z",0
         .byte   "W xxxx yyyy zzzz - Copy memory x-y to z",0
@@ -398,8 +398,6 @@ mainloop:
         txs                             ; reset stack
         ldx     #$00
         stx     mon_kbdcnt              ; clear keyboard buffer
-        lda     #NUMROWS-2
-        sta     mon_page_cnt            ; reset page line counter
         lda     mon_csrcol
         beq     @skipcr
         jsr     print_cr                ; print CR if not at col 0
@@ -560,41 +558,9 @@ help:
         jsr     monio_chrout
         jsr     strout1                 ; print string until 0 terminator
         iny                             ; advance past 0 to next string
-        cpy     #20
-        bne     @nopause
-        lda     #' '                    ; push SPACE to keyboard buffer
-        sta     mon_kbdbuf              ; (pauses output after next line)
-        inc     mon_kbdcnt
-@nopause:
-        jsr     page_pause              ; check PAUSE/STOP
+        jsr     check_stop_key          ; check STOP
         lda     (mon_strptr),y          ; first byte of next string
         bne     @line                   ; loop if not end sentinel
-        rts
-
-; ------------------------------------------------------------------------------
-; page_pause - end-of-line wait/pause handling
-; ------------------------------------------------------------------------------
-; If a key was pressed, wait for another keypress to resume.
-; If SPACE, push it to kbdbuf so the next line pauses too.
-; If STOP, longjmp to mainloop.
-; ------------------------------------------------------------------------------
-page_pause:
-        dec     mon_page_cnt            ; decrement page line counter
-        bmi     @autopause              ; page full -> force pause
-        jsr     check_stop_key          ; poll for keypress
-        beq     @done                   ; no key -> done
-        bne     @dowait                 ; key pressed -> pause
-@autopause:
-        lda     #NUMROWS-2
-        sta     mon_page_cnt            ; reset counter
-@dowait:
-        jsr     check_stop_key
-        beq     @dowait                 ; wait for resume keypress
-        cmp     #$20                    ; SPACE?
-        bne     @done
-        sta     mon_kbdbuf
-        inc     mon_kbdcnt              ; single-step mode
-@done:
         rts
 
 ; ------------------------------------------------------------------------------
@@ -615,19 +581,13 @@ check_stop_key:
         jmp     mainloop
 
 ; ------------------------------------------------------------------------------
-; get_opt_addr - optionally get address for G command
+; get_addr_to_pc - read a word into PCLSAVE/PCHSAVE
 ; ------------------------------------------------------------------------------
-; If next char is not CR, read a word into PCLSAVE/PCHSAVE.
-; ------------------------------------------------------------------------------
-get_opt_addr:
-        jsr     peek_char
-        beq     get_opt_addr_rts
 get_addr_to_pc:
         jsr     get_word
         sta     mon_pclsave
         lda     mon_addr+1
         sta     mon_pchsave
-get_opt_addr_rts:
         rts
 
 ; ------------------------------------------------------------------------------
@@ -777,10 +737,10 @@ inc_addr:
         rts
 
 ; ------------------------------------------------------------------------------
-; check_pause_end - check stop/pause + end address
+; check_stop_end - check stop key + end address
 ; ------------------------------------------------------------------------------
-check_pause_end:
-        jsr     page_pause              ; end-of-line wait handling
+check_stop_end:
+        jsr     check_stop_key          ; abort on ESC/CTRL-C
         jmp     check_end               ; check end address
 
 ; ------------------------------------------------------------------------------
@@ -986,7 +946,7 @@ disasm_loop:
         dex
         bne     @dash
 @nosep:
-        jsr     check_pause_end         ; check pause/stop/end
+        jsr     check_stop_end          ; check stop/end
         bcc     disasm_loop
         rts
 
@@ -1475,7 +1435,9 @@ md1:
         jmp     memsiz
 md2:
         cmp     #' '
-        bne     mderr
+        beq     md3
+        dec     mon_csrcol              ; no space: re-read as start address
+md3:
         jsr     get_start_end           ; get start (mon_addr) and end (mon_end)
 md_hex_line:
         ldx     #$3A                    ; ':'
@@ -1496,7 +1458,7 @@ md_ascii_byte:
         jsr     store_line_char         ; store ASCII in line buffer
         bne     md_print_byte           ; repeat until Y == NUMCOLS
         jsr     preol                   ; print rest of line
-        jsr     check_pause_end         ; check pause/stop/end
+        jsr     check_stop_end          ; check stop/end
         bcc     md_hex_line             ; continue if not at end
         rts
 
@@ -1532,10 +1494,11 @@ ms_test:
         jsr     inc_addr                ; increment mon_addr
         jsr     check_end               ; check end
         bcc     ms_test
-        .byte   $2C                     ; BIT abs - skip next instruction
+        bra     ms_done                 ; all RAM: report end address
 ms_fail:
         tya
         sta     (mon_addr,x)            ; restore on failure too
+ms_done:
         jsr     print_word              ; print address where RAM ends
         rts
 
@@ -1588,13 +1551,15 @@ mt_cp2:
         dex
         bpl     mt_cp2
         ldx     #$00
-        ; write pattern
+        ; write pattern (end address inclusive)
 mt_wr:
         lda     mon_scratch1
         sta     (mon_addr,x)
-        jsr     inc_addr
         jsr     check_end
-        bcc     mt_wr
+        bcs     mt_wrdone
+        jsr     inc_addr
+        bra     mt_wr
+mt_wrdone:
         ; reset pointers
         ldx     #3
 mt_cp3:
@@ -1603,14 +1568,16 @@ mt_cp3:
         dex
         bpl     mt_cp3
         ldx     #$00
-        ; verify pattern
+        ; verify pattern (end address inclusive)
 mt_vfy:
         lda     (mon_addr,x)
         cmp     mon_scratch1
         bne     mt_err
-        jsr     inc_addr
         jsr     check_end
-        bcc     mt_vfy
+        bcs     mt_vfydone
+        jsr     inc_addr
+        bra     mt_vfy
+mt_vfydone:
         lda     #'+'
         jsr     monio_chrout
         rts
@@ -1667,7 +1634,7 @@ kchr:
         bne     kchr                    ; repeat until Y == NUMCOLS
         jsr     preol                   ; print rest of line
         ldx     #$00
-        jsr     check_pause_end         ; check pause/stop/end
+        jsr     check_stop_end          ; check stop/end
         bcc     kloop                   ; continue if not at end
         rts
 
@@ -1860,8 +1827,7 @@ semi:
         jsr     get_addr_to_pc          ; get PC
         ldy     #$00
 semi_lp:
-        jsr     get_char                ; skip separator
-        jsr     get_hex_byte            ; get hex byte
+        jsr     get_byte_skip_ws        ; get hex byte (skip separators)
         sta     mon_srsave,y
         iny
         cpy     #$05
@@ -1876,17 +1842,21 @@ semi_lp:
 ; Uses direct indexed access into contiguous mon_regsave block.
 ; ------------------------------------------------------------------------------
 go:
-        jsr     skip_spaces
         jsr     peek_char
-        beq     @direct                 ; CR = use current PC
+        beq     @run                    ; CR = run from current PC
+        cmp     #' '
+        bne     @nospace
+        jsr     get_char                ; consume leading space
+        bra     go
+@nospace:
         cmp     #'('
         beq     @indirect
         cmp     #'0'                    ; must be hex digit
         bcc     @bad
         cmp     #'G'                    ; 0-9 A-F only
         bcs     @bad
-@direct:
-        jsr     get_opt_addr            ; optionally get address
+        jsr     get_addr_to_pc          ; read start address
+@run:
         bra     exit_monitor
 
 @indirect:
@@ -2092,7 +2062,10 @@ ldsync:
 ; ------------------------------------------------------------------------------
 addsub:
         jsr     get_word                ; first operand -> mon_addr
+@op:
         jsr     get_char                ; get operator (+, -, *, /)
+        cmp     #' '
+        beq     @op                     ; allow spaces around the operator
         pha                             ; save operator
         jsr     get_word_alt            ; second operand -> mon_end
         pla
@@ -2358,14 +2331,15 @@ f_chk:
         dex
         bne     f_chk
 
-        ; plain F: find byte sequence
-        stx     mon_find_arg+1          ; X=0, store byte index
+        ; plain F: find byte sequence (X = 0 here)
 f_byte:
         jsr     find_get_pair           ; get search data (2 nibbles + masks)
         inx
         jsr     monio_chrin
         cmp     #' '
         beq     f_byte
+        dex
+        stx     mon_find_arg+1          ; pattern length - 1
         cmp     #$2C                    ; ','
         bne     f_range
         jsr     get_two_words
@@ -2385,7 +2359,7 @@ f_cmp:
         ldy     mon_csrcol
         cpy     #76
         bcc     f_next
-        jsr     page_pause
+        jsr     check_stop_key          ; abort on ESC/CTRL-C
         jsr     print_cr
 f_next:
         jsr     inc_check_end
@@ -2429,7 +2403,7 @@ f_sub5a:
 f_sub6:
         sty     mon_mode
         jsr     disasm_one              ; disassemble match
-        jsr     page_pause              ; pause/stop
+        jsr     check_stop_key          ; abort on ESC/CTRL-C
 f_sub6a:
         jsr     check_end
         bcc     f_sub3
@@ -2453,6 +2427,8 @@ find_get_pair:
 ; ------------------------------------------------------------------------------
 find_get_nibble:
         jsr     get_char
+        cmp     #' '                    ; allow spaces before the value
+        beq     find_get_nibble
         ldy     #$0F                    ; mask = $0F (all bits matter)
         cmp     #'*'                    ; wildcard?
         bne     find_convert_nib
@@ -2595,8 +2571,10 @@ default_irq:
 ; there, then execute user code via RTI.  The BRK handler restores the
 ; patched bytes, saves state, and displays the trace line.
 ;
-; TW = trace walk (interactive, press key for next step)
-; TQ = trace quick (single step, show registers)
+; TW (xxxx) = trace walk (interactive; without an address, step once from
+;             the current PC and keep walking from there)
+; TQ (xxxx) = trace quick (run from x, or the current PC, to the
+;             breakpoint remembered from the last TS/TB)
 ; TS = trace stop (run to address, then break)
 ; TB = trace break (run to address, stop after N hits)
 ; ------------------------------------------------------------------------------
@@ -2604,7 +2582,9 @@ trace:
         jsr     monio_chrin
         jsr     ucase
         cmp     #'W'
-        beq     tracew
+        bne     :+
+        jmp     tracew                  ; out of branch range
+:
         cmp     #'Q'
         beq     traceq
         cmp     #'S'
@@ -2617,6 +2597,24 @@ trace:
 traces:
         jsr     get_word                ; breakpoint address -> mon_addr
         lda     #1
+        bne     ts_go                   ; always
+
+; --- TQ (xxxx) - run from xxxx (or current PC) to the stored breakpoint -------
+traceq:
+        lda     mon_traceaddr           ; breakpoint set by an earlier TS/TB?
+        ora     mon_traceaddr+1
+        bne     @havebp
+        jmp     error                   ; no breakpoint to run to
+@havebp:
+        jsr     peek_char
+        beq     @nostart                ; no address: run from current PC
+        jsr     get_addr_to_pc          ; start address -> user PC
+@nostart:
+        lda     mon_traceaddr           ; re-arm the stored breakpoint
+        sta     mon_addr
+        lda     mon_traceaddr+1
+        sta     mon_addr+1
+        lda     #1                      ; stop on first hit
         bne     ts_go                   ; always
 
 ; --- TB xxxx nn - run, stop after nn-th hit at xxxx ---------------------------
@@ -2636,7 +2634,25 @@ ts_go:
         pla
         and     #$EF                    ; clear BRK flag
         sta     mon_srsave
+        tsx
+        stx     mon_spsave
+        jsr     print_cr                ; CR
 
+        ; if the saved PC already sits on the breakpoint (e.g. resuming
+        ; right after a breakpoint stop), single-step past it first; the
+        ; step BRK handler (mode $20) re-injects the breakpoint and
+        ; resumes at full speed
+        lda     mon_pclsave
+        cmp     mon_traceaddr
+        bne     ts_arm
+        lda     mon_pchsave
+        cmp     mon_traceaddr+1
+        bne     ts_arm
+        lda     #$20
+        sta     mon_tracemode
+        jmp     tl_launch
+
+ts_arm:
         ; save original byte at breakpoint, inject BRK
         lda     mon_traceaddr+1
         sta     mon_src_addr+1
@@ -2648,11 +2664,7 @@ ts_go:
         lda     #$00                    ; BRK
         sta     (mon_src_addr),y
 
-        ; set BRK vector -> tsint, save SP, RTI to user code
-        tsx
-        stx     mon_spsave
-        jsr     print_cr                ; CR
-
+        ; set BRK vector -> tsint, RTI to user code
         lda     #<tsint
         sta     mon_brk_vec
         lda     #>tsint
@@ -2673,32 +2685,23 @@ ts_go:
         ; -> user code (runs until BRK at traceaddr)
         rti
 
-traceq:
-        php
-        pla
-        and     #$EF                    ; clear BRK flag
-        sta     mon_srsave              ; use current SR as user SR
-        lda     #$40                    ; TQ mode
-        bne     trace_go                ; always
-
 tracew:
         php
         pla
         and     #$EF                    ; clear BRK flag
         sta     mon_srsave              ; use current SR as user SR
         lda     #$80                    ; TW mode
-
-trace_go:
         sta     mon_tracemode
         tsx
         stx     mon_spsave
-        jsr     get_opt_addr            ; optionally get start PC
-        lda     mon_tracemode
-        bpl     @tq                     ; TQ -> just CR, then launch
-        ; TW -> show initial state before first step
-        jmp     tw_walk
-@tq:
-        jsr     print_cr                ; TQ -> CR
+        jsr     peek_char
+        beq     @step                   ; no address: step once from PC
+        jsr     get_addr_to_pc          ; get start address
+        jmp     tw_walk                 ; show state, wait for step key
+@step:
+        jsr     print_cr
+        ; fall through to tl_launch: execute one instruction; the BRK
+        ; handler then re-enters tw_walk to display the new state
 
 ; ------------------------------------------------------------------------------
 ; tl_launch - inject BRK(s) and execute one user instruction via RTI
@@ -2987,9 +2990,7 @@ tw_save:
         bmi     tw_walk                 ; $80 = TW mode
         cmp     #$20
         beq     ts_reinject             ; $20 = TS/TB continue after single-step
-
-        ; TQ mode ($40) - single step done, show and exit
-        jmp     tw_exit
+        jmp     tw_exit                 ; unknown mode - show regs and exit
 
 tw_user_brk:
         ; user code hit a BRK - show registers and exit

@@ -14,7 +14,7 @@
         .exportzp mon_msgflag, mon_tmpbuf, mon_kbdbuf, mon_kbdcnt
         .exportzp mon_lastcol, mon_crflag, mon_lineptr, mon_csrcol
         .exportzp mon_csrrow, mon_lastprnt
-        .exportzp mon_page_cnt, mon_tmp
+        .exportzp mon_tmp
         .exportzp mon_decval
         .exportzp mon_work, mon_src_addr, mon_end_addr, mon_find_arg
         .exportzp mon_mode, mon_addr_mode, mon_opcode_idx
@@ -70,7 +70,6 @@ mon_lastprnt:   .res 1          ; last character printed
 ; MON_BRK general-purpose working area
 ; ------------------------------------------------------------------------------
 
-mon_page_cnt:   .res 1          ; page line counter
 mon_tmp:        .res 2          ; temp (multiply/divide scratch)
 
 ; --- decimal print value ---

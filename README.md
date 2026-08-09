@@ -38,16 +38,17 @@ and relocatable asm so it's likely portable to other computers.
 - Address relocation (convert + copy)
 - Immediate evaluation (hex to decimal, binary to hex, etc., integer arithmetic)
 - Indirect jump through vectors (`G (addr)`)
+- A W65C02SXB simulator implemented with `py65`
 
 ## Memory Usage
 
 | Segment    | Bytes | Contents                                  |
 |------------|------:|-------------------------------------------|
 | `STARTUP`  |    77 | One-time init code                        |
-| `CODE`     |  5252 | Program code                              |
-| `RODATA`   |  2204 | Strings, tables, help text                |
+| `CODE`     |  5315 | Program code                              |
+| `RODATA`   |  2274 | Strings, tables, help text                |
 | `DATA`     |    37 | Initialized data (copied from ROM at startup) |
-|            | **7570** | **ROM total** (23% of 32 KB)           |
+|            | **7703** | **ROM total** (24% of 32 KB)           |
 | `ZEROPAGE` |    73 | Zero-page variables                       |
 | `BSS`      |  2144 | Uninitialized variables                   |
 |            | **2217** | **RAM total**                          |
@@ -66,8 +67,16 @@ and relocatable asm so it's likely portable to other computers.
 | `make`      | Build the 32 KB ROM image (`build/rom.bin`)         |
 | `make pad`  | Pad to 128 KB for the SST39SF010A (`build/rom.pad`) |
 | `make flash_rom` | Pad and flash via minipro                      |
+| `make test`      | Run unit tests in a simulated 65C02 system      |
+| `make sim`       | Run the monitor interactively in the simulator  |
 | `make clean`     | Remove build artifacts                          |
 | `make rebuild`   | Clean and rebuild                               |
+
+Note: the source uses the `c_sp` zero-page name, which requires a cc65
+built from git master (the 2.19 release still calls it `sp`). The Makefile
+auto-detects the cc65 data directory in `/usr/local/share/cc65` and
+`/usr/share/cc65`; override with `make CC65_DATA_DIR=...` if yours lives
+elsewhere.
 
 The SBC uses a 128 KB ROM chip, but only the top 32 KB is visible to the CPU.
 The ROM image is padded with `$FF` to 128 KB for flashing.
@@ -75,6 +84,15 @@ The ROM image is padded with `$FF` to 128 KB for flashing.
 You'll probably need a PLCC-32 to DIP-32 and a PLCC puller to flash the ROM
 chip, as well as a programmer. I was never able to get the board's built-in USB
 to work, which is why I'm using this in the first place.
+
+## Testing
+
+`make test` runs the ROM image under a simulated W65C02SXB and drives the
+monitor through an emulated terminal, checking the responses. The
+simulation uses [py65](https://github.com/mnaberez/py65)'s 65C02 core with
+the board's memory map, and emulates the FT245 USB FIFO. 
+
+Requirements: `python3` and py65 (`pip install -r test/requirements.txt`).
 
 ## Monitor Commands
 
@@ -103,9 +121,9 @@ Type `H` at the monitor prompt to display the built-in help.
 | **P** | `P xxxx` | **P**eek - read and display byte at `xxxx` |
 | **R** | `R` | Display **r**egisters |
 | **S** | `S xxxx aa` | **S**tore - write byte `aa` to address `xxxx` |
-| **TW** | `TW xxxx` | **T**race **w**alk  - single-step from `xxxx` |
+| **TW** | `TW (xxxx)` | **T**race **w**alk  - single-step from `xxxx` (no address: step once from current PC, then keep walking) |
 | **TB** | `TB xxxx nn` | **T**race **b**reak  - set breakpoint at `xxxx`, stop after `nn` hits |
-| **TQ** | `TQ xxxx` | **T**race **q**uick  - run to breakpoint at `xxxx` |
+| **TQ** | `TQ (xxxx)` | **T**race **q**uick  - run from `xxxx` (or current PC) to the breakpoint remembered from the last **TS**/**TB** |
 | **TS** | `TS xxxx` | **T**race **s**top  - run until PC reaches `xxxx` |
 | **V** | `V xxxx yyyy zzzz aaaa bbbb` | Relocate (mo**v**e) address references in `aaaa`-`bbbb` from `xxxx`-`yyyy` to `zzzz` |
 | **W** | `W xxxx yyyy zzzz` | Copy (**w**rite) memory `xxxx`-`yyyy` to `zzzz` |
