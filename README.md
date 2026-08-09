@@ -38,6 +38,7 @@ and relocatable asm so it's likely portable to other computers.
 - Address relocation (convert + copy)
 - Immediate evaluation (hex to decimal, binary to hex, etc., integer arithmetic)
 - Indirect jump through vectors (`G (addr)`)
+- A W65C02SXB simulator implemented with `py65`
 
 ## Memory Usage
 
@@ -67,6 +68,7 @@ and relocatable asm so it's likely portable to other computers.
 | `make pad`  | Pad to 128 KB for the SST39SF010A (`build/rom.pad`) |
 | `make flash_rom` | Pad and flash via minipro                      |
 | `make test`      | Run unit tests in a simulated 65C02 system      |
+| `make sim`       | Run the monitor interactively in the simulator  |
 | `make clean`     | Remove build artifacts                          |
 | `make rebuild`   | Clean and rebuild                               |
 
@@ -88,21 +90,9 @@ to work, which is why I'm using this in the first place.
 `make test` runs the ROM image under a simulated W65C02SXB and drives the
 monitor through an emulated terminal, checking the responses. The
 simulation uses [py65](https://github.com/mnaberez/py65)'s 65C02 core with
-the board's memory map, and emulates the FT245 USB FIFO at the VIA2
-register level, so the exact bytes that would ship over USB on real
-hardware are what the tests assert against. Tests boot the ROM from its
-reset vector, trigger an NMI to enter the monitor, and type commands at
-the prompt just like a user would.
+the board's memory map, and emulates the FT245 USB FIFO. 
 
 Requirements: `python3` and py65 (`pip install -r test/requirements.txt`).
-
-- `test/sxb_sim.py` - the simulated board: FT245/VIA2 emulation, NMI,
-  terminal-style `command()` interface, and a `call()` helper for invoking
-  individual subroutines by label (addresses are read from the linker's
-  `build/rom.labels` output).
-- `test/test_monitor.py` - the monitor test suite.
-
-Tests also run automatically on GitHub for every pull request.
 
 ## Monitor Commands
 

@@ -9,6 +9,7 @@
 #   pad       - Build the padded 128KB ROM image for external flashing
 #   flash_rom - Flash padded ROM to SST39SF010A via minipro
 #   test      - Run unit tests in a simulated 65C02 system (needs py65)
+#   sim       - Run the monitor interactively in the simulator
 #   clean     - Remove all build artifacts
 #   rebuild   - Clean + full rebuild
 #
@@ -55,7 +56,7 @@ INC_SRC   = $(wildcard $(SRC_DIR)/*.inc)
 # Main targets
 # =============================================================================
 
-.PHONY: all rom stdlib pad flash_rom clean rebuild test
+.PHONY: all rom stdlib pad flash_rom clean rebuild test sim
 
 all: $(ROM_PADDED)
 
@@ -80,6 +81,10 @@ rebuild:
 
 test: $(ROM)
 	python3 -m unittest discover -s $(TEST_DIR) -v
+
+# Launch the simulated SXB with your terminal as the USB console
+sim: $(ROM)
+	python3 $(TEST_DIR)/interactive.py
 
 # =============================================================================
 # Standard library generation
