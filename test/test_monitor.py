@@ -111,15 +111,8 @@ class MonitorTestCase(unittest.TestCase):
     # ------------------------------------------------------------------
     # F - find byte sequence
     # ------------------------------------------------------------------
-    @unittest.expectedFailure
     def test_find_byte_sequence(self):
-        """F matches the full byte sequence, not just its first byte.
-
-        BUG: find (monitor_core.s) stores the pattern length into
-        mon_find_arg+1 only once, before any pairs are read, so it is
-        always zero and only the first pattern byte is ever compared.
-        'F DE AD' therefore also reports a lone DE not followed by AD.
-        """
+        """F matches the full byte sequence, not just its first byte."""
         self.poke(0x1200, [0x00] * 0x21)
         self.poke(0x1210, [0xDE, 0xAD])
         self.poke(0x1218, [0xDE, 0x01])  # first byte only - must NOT match
@@ -139,40 +132,29 @@ class MonitorTestCase(unittest.TestCase):
     # ------------------------------------------------------------------
     # FA / FZ / FI / FR / FT - find in opcode arguments
     #
-    # The built-in help gives these as 'FAaaaa, xxxx yyyy' - no space
-    # between the sub-command and its argument - and that is what the
-    # parser implements (see test_find_readme_syntax below for the
-    # README's spaced form).
+    # Both the README's spaced form ('FA aaaa, ...') and the compact
+    # form ('FAaaaa, ...') are accepted.
     # ------------------------------------------------------------------
     def test_find_absolute_address(self):
         """FA finds instructions whose absolute operand matches."""
         self.poke(0x1500, [0xEA] * 8)
         self.poke(0x1502, bytes.fromhex("AD3412"))  # LDA $1234
-        out = self.sim.command("FA1234, 1500 1507")
+        out = self.sim.command("FA 1234, 1500 1507")
         self.assertIn("1502", out)
         self.assertIn("LDA", out)
 
-    @unittest.expectedFailure
-    def test_find_readme_syntax(self):
-        """FA accepts a space before its argument, as the README shows.
-
-        BUG (doc/parser mismatch): README documents 'FA aaaa, xxxx yyyy'
-        but find_get_nibble treats the space as a hex digit of value 0,
-        shifting every following character - 'FA 1234, 1500 1507' parses
-        the pattern as $0123 and the range as $4C01-$5000, so the search
-        silently scans the wrong range for the wrong value.  Either the
-        parser should skip leading spaces or the README should drop them.
-        """
+    def test_find_compact_syntax(self):
+        """FA also accepts its argument without a separating space."""
         self.poke(0x1500, [0xEA] * 8)
         self.poke(0x1502, bytes.fromhex("AD3412"))  # LDA $1234
-        out = self.sim.command("FA 1234, 1500 1507")
+        out = self.sim.command("FA1234, 1500 1507")
         self.assertIn("1502", out)
 
     def test_find_zero_page_address(self):
         """FZ finds instructions with a matching zero-page operand."""
         self.poke(0x1500, [0xEA] * 8)
         self.poke(0x1503, bytes.fromhex("A542"))  # LDA $42
-        out = self.sim.command("FZ42, 1500 1507")
+        out = self.sim.command("FZ 42, 1500 1507")
         self.assertIn("1503", out)
         self.assertIn("LDA", out)
 
@@ -180,7 +162,7 @@ class MonitorTestCase(unittest.TestCase):
         """FI finds instructions with a matching immediate operand."""
         self.poke(0x1500, [0xEA] * 8)
         self.poke(0x1504, bytes.fromhex("A937"))  # LDA #$37
-        out = self.sim.command("FI37, 1500 1507")
+        out = self.sim.command("FI 37, 1500 1507")
         self.assertIn("1504", out)
         self.assertIn("LDA", out)
 
@@ -188,7 +170,7 @@ class MonitorTestCase(unittest.TestCase):
         """FR finds branches that target the given address."""
         self.poke(0x1500, [0xEA] * 16)
         self.poke(0x1504, bytes.fromhex("F008"))  # BEQ $150E
-        out = self.sim.command("FR150E, 1500 150D")
+        out = self.sim.command("FR 150E, 1500 150D")
         self.assertIn("1504", out)
         self.assertIn("BEQ", out)
 
@@ -220,6 +202,15 @@ class MonitorTestCase(unittest.TestCase):
         self.sim.command("G (1200)")
         self.assertEqual(self.sim.mem[0x1100], 0x55)
 
+    def test_go_no_address(self):
+        """Bare G runs from the saved PC instead of erroring."""
+        self.poke(0x1000, bytes.fromhex("A9438D001100"))
+        self.set_saved_pc(0x1000)
+        out = self.sim.command("G")
+        self.assertNotIn("?", out)
+        self.assertEqual(self.sim.mem[0x1100], 0x43)
+        self.assertIn("PC  SR AC XR YR SP", out)  # BRK back into monitor
+
     # ------------------------------------------------------------------
     # H - help
     # ------------------------------------------------------------------
@@ -227,7 +218,7 @@ class MonitorTestCase(unittest.TestCase):
         """H prints the full command summary (across output pauses)."""
         out = self.sim.command("H")
         self.assertIn("A xxxx - Assemble", out)
-        self.assertIn("TW xxxx - Trace walk", out)
+        self.assertIn("TW (xxxx) - Trace walk", out)
         self.assertIn("%bbbbbbbb - convert BIN", out)  # last help line
 
     # ------------------------------------------------------------------
@@ -270,6 +261,10 @@ class MonitorTestCase(unittest.TestCase):
         for b in data:
             self.assertIn("%02X" % b, out)
         self.assertIn("ABCDEFG", out)  # ASCII gutter
+        # compact form (no space after M) dumps the same line
+        out = self.sim.command("M1700 170F")
+        self.assertIn(":1700", out)
+        self.assertIn("ABCDEFG", out)
 
     def test_memory_size(self):
         """MS scans upward from $0100 and prints where RAM stops
@@ -286,20 +281,13 @@ class MonitorTestCase(unittest.TestCase):
         out = self.sim.command("MT 1800 18FF 02")
         self.assertEqual(out.count("+"), 8)
 
-    @unittest.expectedFailure
     def test_memory_test_covers_full_range(self):
-        """MT tests the end address, matching its inclusive-range docs.
-
-        BUG: memtst's loops stop as soon as the address reaches the end
-        (check_end returns carry-set at addr == end, and mt_wr/mt_vfy
-        loop on carry-clear), so 'MT 1800 18FF' never writes or checks
-        $18FF, while O/W/M all treat the end address inclusively.  The
-        last pattern ($FF) is left in every tested cell, so an untouched
-        end cell exposes the gap.
-        """
+        """MT includes the end address, like O/W/M.  (The last pattern,
+        $FF, stays in every tested cell, so coverage is observable.)"""
         self.sim.command("MT 1800 18FF")
         self.assertEqual(self.sim.mem[0x18FE], 0xFF)
         self.assertEqual(self.sim.mem[0x18FF], 0xFF)
+        self.assertEqual(self.sim.mem[0x1900], 0x00)  # not past the end
 
     # ------------------------------------------------------------------
     # O - fill
@@ -376,17 +364,30 @@ class MonitorTestCase(unittest.TestCase):
         self.assertEqual(self.sim.mem[0x1A12], 0xEE)  # BRK removed again
 
     def test_trace_quick(self):
-        """TQ executes a single instruction and shows the registers.
+        """TQ runs from the saved PC to the given breakpoint (like TS)."""
+        # LDA #$37 / STA $1100 / NOP / RTS
+        self.poke(0x1A20, bytes.fromhex("A9378D0011EA60"))
+        self.set_saved_pc(0x1A20)
+        out = self.sim.command("TQ 1A25")
+        self.assertEqual(self.sim.mem[0x1100], 0x37)  # ran up to the BP
+        self.assertIn(";1A25", out)                   # stopped at target
+        self.assertIn(" 37 ", out)                    # A loaded
+        self.assertEqual(self.sim.mem[0x1A25], 0xEA)  # BRK removed again
 
-        Note: README/help describe TQ as 'run to break point', but the
-        implementation (and its comments) single-step one instruction;
-        this test pins down the implemented behavior.
-        """
-        self.poke(0x1A20, bytes.fromhex("A937EA"))  # LDA #$37 / NOP
-        out = self.sim.command("TQ 1A20")
-        self.assertIn("PC  SR AC XR YR SP", out)
-        self.assertIn(";1A22 ", out)  # advanced exactly one instruction
-        self.assertIn(" 37 ", out)    # A loaded
+    def test_trace_walk_no_address(self):
+        """Bare TW (with or without trailing whitespace) steps one
+        instruction from the saved PC, then keeps walking."""
+        # LDA #$42 / STA $1100 / BRK
+        self.poke(0x1A30, bytes.fromhex("A9428D001100"))
+        self.set_saved_pc(0x1A30)
+        out = self.sim.command("TW ", auto_page=False)
+        self.assertEqual(self.sim.state, "pause")     # walking, wants a key
+        self.assertIn("1A32", out)                    # PC after the LDA step
+        self.assertIn("STA", out)                     # next instruction shown
+        self.assertEqual(self.sim.mem[0x1100], 0x00)  # STA not yet run
+        out = self.sim.press_key("\x1b")              # ESC ends the walk
+        self.assertEqual(self.sim.state, "input")
+        self.assertIn(" 42 ", out)                    # A holds the LDA result
 
     # ------------------------------------------------------------------
     # V - relocate address references
@@ -425,6 +426,8 @@ class MonitorTestCase(unittest.TestCase):
     def test_evaluate(self):
         """? evaluates +, -, *, / and prints hex/binary/decimal."""
         out = self.sim.command("? 0002+0003")
+        self.assertIn("05 00000101 5", out)
+        out = self.sim.command("? 0002 + 0003")  # spaces around operator
         self.assertIn("05 00000101 5", out)
         out = self.sim.command("? 0009-0004")
         self.assertIn("05 00000101 5", out)
@@ -477,8 +480,8 @@ class MonitorTestCase(unittest.TestCase):
         self.assertEqual(self.bytes_at(0x1D00, 3), bytes.fromhex("AABBCC"))
 
     def test_semicolon_set_registers(self):
-        """; sets PC SR AC XR YR SP, visible in R."""
-        self.sim.command("; 1234 A1 42 11 22 F0")
+        """; sets PC SR AC XR YR SP, visible in R (any spacing)."""
+        self.sim.command("; 1234  A1 42  11 22 F0")  # uneven spacing is fine
         out = self.sim.command("R")
         self.assertIn(";1234 A1 42 11 22 F0", out)
         self.assertIn("10100001", out)  # SR echoed in binary
