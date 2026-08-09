@@ -45,10 +45,10 @@ and relocatable asm so it's likely portable to other computers.
 | Segment    | Bytes | Contents                                  |
 |------------|------:|-------------------------------------------|
 | `STARTUP`  |    77 | One-time init code                        |
-| `CODE`     |  5255 | Program code                              |
-| `RODATA`   |  2249 | Strings, tables, help text                |
+| `CODE`     |  5315 | Program code                              |
+| `RODATA`   |  2274 | Strings, tables, help text                |
 | `DATA`     |    37 | Initialized data (copied from ROM at startup) |
-|            | **7618** | **ROM total** (23% of 32 KB)           |
+|            | **7703** | **ROM total** (24% of 32 KB)           |
 | `ZEROPAGE` |    73 | Zero-page variables                       |
 | `BSS`      |  2144 | Uninitialized variables                   |
 |            | **2217** | **RAM total**                          |
@@ -123,7 +123,7 @@ Type `H` at the monitor prompt to display the built-in help.
 | **S** | `S xxxx aa` | **S**tore - write byte `aa` to address `xxxx` |
 | **TW** | `TW (xxxx)` | **T**race **w**alk  - single-step from `xxxx` (no address: step once from current PC, then keep walking) |
 | **TB** | `TB xxxx nn` | **T**race **b**reak  - set breakpoint at `xxxx`, stop after `nn` hits |
-| **TQ** | `TQ xxxx` | **T**race **q**uick  - run to breakpoint at `xxxx` |
+| **TQ** | `TQ (xxxx)` | **T**race **q**uick  - run from `xxxx` (or current PC) to the breakpoint remembered from the last **TS**/**TB** |
 | **TS** | `TS xxxx` | **T**race **s**top  - run until PC reaches `xxxx` |
 | **V** | `V xxxx yyyy zzzz aaaa bbbb` | Relocate (mo**v**e) address references in `aaaa`-`bbbb` from `xxxx`-`yyyy` to `zzzz` |
 | **W** | `W xxxx yyyy zzzz` | Copy (**w**rite) memory `xxxx`-`yyyy` to `zzzz` |

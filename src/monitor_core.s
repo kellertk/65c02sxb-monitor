@@ -126,7 +126,7 @@ hlpmsg:
         .byte   "O xxxx yyyy aa - Fill memory x-y with a",0
         .byte   "TW (xxxx) - Trace walk (single step from x; no address: step from PC)",0
         .byte   "TB xxxx nn - Trace break (set break point at x, stop when hit n times)",0
-        .byte   "TQ xxxx - Trace quick (run to break point at x)",0
+        .byte   "TQ (xxxx) - Trace quick (run from x, or PC, to break point set by TS/TB)",0
         .byte   "TS xxxx - Trace stop (run to x)",0
         .byte   "V xxxx yyyy zzzz aaaa bbbb - Within a-b, convert addresses referencing x-y to z",0
         .byte   "W xxxx yyyy zzzz - Copy memory x-y to z",0
@@ -2607,7 +2607,8 @@ default_irq:
 ;
 ; TW (xxxx) = trace walk (interactive; without an address, step once from
 ;             the current PC and keep walking from there)
-; TQ = trace quick (run to breakpoint - same as TS)
+; TQ (xxxx) = trace quick (run from x, or the current PC, to the
+;             breakpoint remembered from the last TS/TB)
 ; TS = trace stop (run to address, then break)
 ; TB = trace break (run to address, stop after N hits)
 ; ------------------------------------------------------------------------------
@@ -2615,9 +2616,11 @@ trace:
         jsr     monio_chrin
         jsr     ucase
         cmp     #'W'
-        beq     tracew
+        bne     :+
+        jmp     tracew                  ; out of branch range
+:
         cmp     #'Q'
-        beq     traces                  ; TQ: run to breakpoint (alias of TS)
+        beq     traceq
         cmp     #'S'
         beq     traces
         cmp     #'B'
@@ -2628,6 +2631,24 @@ trace:
 traces:
         jsr     get_word                ; breakpoint address -> mon_addr
         lda     #1
+        bne     ts_go                   ; always
+
+; --- TQ (xxxx) - run from xxxx (or current PC) to the stored breakpoint -------
+traceq:
+        lda     mon_traceaddr           ; breakpoint set by an earlier TS/TB?
+        ora     mon_traceaddr+1
+        bne     @havebp
+        jmp     error                   ; no breakpoint to run to
+@havebp:
+        jsr     peek_char
+        beq     @nostart                ; no address: run from current PC
+        jsr     get_addr_to_pc          ; start address -> user PC
+@nostart:
+        lda     mon_traceaddr           ; re-arm the stored breakpoint
+        sta     mon_addr
+        lda     mon_traceaddr+1
+        sta     mon_addr+1
+        lda     #1                      ; stop on first hit
         bne     ts_go                   ; always
 
 ; --- TB xxxx nn - run, stop after nn-th hit at xxxx ---------------------------
@@ -2647,7 +2668,25 @@ ts_go:
         pla
         and     #$EF                    ; clear BRK flag
         sta     mon_srsave
+        tsx
+        stx     mon_spsave
+        jsr     print_cr                ; CR
 
+        ; if the saved PC already sits on the breakpoint (e.g. resuming
+        ; right after a breakpoint stop), single-step past it first; the
+        ; step BRK handler (mode $20) re-injects the breakpoint and
+        ; resumes at full speed
+        lda     mon_pclsave
+        cmp     mon_traceaddr
+        bne     ts_arm
+        lda     mon_pchsave
+        cmp     mon_traceaddr+1
+        bne     ts_arm
+        lda     #$20
+        sta     mon_tracemode
+        jmp     tl_launch
+
+ts_arm:
         ; save original byte at breakpoint, inject BRK
         lda     mon_traceaddr+1
         sta     mon_src_addr+1
@@ -2659,11 +2698,7 @@ ts_go:
         lda     #$00                    ; BRK
         sta     (mon_src_addr),y
 
-        ; set BRK vector -> tsint, save SP, RTI to user code
-        tsx
-        stx     mon_spsave
-        jsr     print_cr                ; CR
-
+        ; set BRK vector -> tsint, RTI to user code
         lda     #<tsint
         sta     mon_brk_vec
         lda     #>tsint

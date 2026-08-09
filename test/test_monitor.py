@@ -364,15 +364,28 @@ class MonitorTestCase(unittest.TestCase):
         self.assertEqual(self.sim.mem[0x1A12], 0xEE)  # BRK removed again
 
     def test_trace_quick(self):
-        """TQ runs from the saved PC to the given breakpoint (like TS)."""
-        # LDA #$37 / STA $1100 / NOP / RTS
-        self.poke(0x1A20, bytes.fromhex("A9378D0011EA60"))
+        """TQ re-runs to the breakpoint remembered from TS/TB, from an
+        optional start address (default: the current PC, stepping over
+        the breakpoint it is sitting on)."""
+        # 1A20: LDA #$37 / 1A22: INC $1100 / 1A25: JMP $1A22
+        self.poke(0x1A20, bytes.fromhex("A937EE00114C221A"))
         self.set_saved_pc(0x1A20)
-        out = self.sim.command("TQ 1A25")
-        self.assertEqual(self.sim.mem[0x1100], 0x37)  # ran up to the BP
-        self.assertIn(";1A25", out)                   # stopped at target
-        self.assertIn(" 37 ", out)                    # A loaded
-        self.assertEqual(self.sim.mem[0x1A25], 0xEA)  # BRK removed again
+        out = self.sim.command("TB 1A25 01")  # set breakpoint, run to it
+        self.assertIn(";1A25", out)
+        self.assertEqual(self.sim.mem[0x1100], 1)
+        out = self.sim.command("TQ")  # continue from the stop, once around
+        self.assertIn(";1A25", out)
+        self.assertEqual(self.sim.mem[0x1100], 2)
+        out = self.sim.command("TQ 1A22")  # explicit start address
+        self.assertIn(";1A25", out)
+        self.assertEqual(self.sim.mem[0x1100], 3)
+        self.assertEqual(self.sim.mem[0x1A25], 0x4C)  # BRK removed again
+
+    def test_trace_quick_requires_breakpoint(self):
+        """TQ errors when no TS/TB breakpoint has been set yet."""
+        self.poke(0x1A20, bytes.fromhex("A937EA"))
+        out = self.sim.command("TQ 1A20")
+        self.assertIn("?", out)
 
     def test_trace_walk_no_address(self):
         """Bare TW (with or without trailing whitespace) steps one
